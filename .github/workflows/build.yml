@@ -494,6 +494,21 @@ jobs:
               ;;
           esac
 
+          # 确保 Bazel 将 KernelSU 内核模块编译进内核
+          cd "$KERNEL_ROOT/common"
+          if [ -d "$KERNEL_ROOT/KernelSU/kernel" ]; then
+            grep -q "KernelSU/kernel" Makefile 2>/dev/null || \
+              echo "obj-y += ../../KernelSU/kernel/" >> Makefile
+            echo "已添加 KernelSU 内核模块到 Bazel 构建"
+          fi
+          # 确保 SUSFS 内核模块被编译进内核
+          if [ -d "$KERNEL_ROOT/common/fs/susfs" ]; then
+            grep -q "fs/susfs" Makefile 2>/dev/null || \
+              echo "obj-y += fs/susfs/" >> Makefile
+            echo "已添加 SUSFS 内核模块到 Bazel 构建"
+          fi
+          cd "$KERNEL_ROOT"
+
           if [ -d "KernelSU/.git" ]; then
             KSU_LATEST_COMMIT_DATE=$(git -C KernelSU log -1 --date=format:'%Y-%m-%d %H:%M:%S %z' --format='%cd')
             echo "KSU_LATEST_COMMIT_DATE=$KSU_LATEST_COMMIT_DATE" >> $GITHUB_ENV
