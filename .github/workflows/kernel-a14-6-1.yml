@@ -18,7 +18,7 @@ on:
           - SukiSU(40726)
           - SukiSU(40548)
           - ReSukiSU
-        default: ReSukiSU
+        default: SukiSU
       version:
         description: "自定义版本名 (可选)"
         required: false
@@ -27,7 +27,7 @@ on:
         description: "自定义构建时间 (可选，N或留空=当前UTC)"
         required: false
         type: string
-        default: "Sun Dec 01 08:10:00 UTC 2024"
+        default: "Wed Dec 03 02:05:30 UTC 2025"
       use_kpm:
         description: "KPM 功能（patched 尚不支持）"
         required: true
@@ -64,7 +64,7 @@ on:
         description: "启用 ZRAM 增强算法"
         required: true
         type: boolean
-        default: false
+        default: true
       use_bbg:
         description: "启用 BBG 防格机"
         required: true
@@ -74,7 +74,7 @@ on:
         description: "启用 BBR TCP 拥塞加速"
         required: true
         type: boolean
-        default: false
+        default: true
       use_rekernel:
         description: "启用 Re-Kernel 驱动"
         required: false
@@ -101,7 +101,7 @@ on:
       build_time:
         required: false
         type: string
-        default: "Sun Dec 01 08:10:00 UTC 2024"
+        default: "Wed Dec 03 02:05:30 UTC 2025"
       use_zram:
         required: true
         type: boolean
