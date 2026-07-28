@@ -503,17 +503,15 @@ jobs:
             sed -i '/^GITHUB_COMMITS/c\GITHUB_COMMITS := 3541' KernelSU/kernel/Kbuild 2>/dev/null || true
           fi
 
-          # 确保 Bazel 将 KernelSU 内核模块编译进内核（setup.sh 只改根目录 Makefile，Bazel 编译 common/ 内部的源码）
+          # 确保 KernelSU 源码被 Bazel 编译（复制到 common 目录内，symlink Bazel 沙箱不认）
           if [ -d "$KERNEL_ROOT/KernelSU/kernel" ]; then
+            rm -rf "$KERNEL_ROOT/common/KernelSU_kernel" 2>/dev/null || true
+            cp -r "$KERNEL_ROOT/KernelSU/kernel" "$KERNEL_ROOT/common/KernelSU_kernel"
+            find "$KERNEL_ROOT/common/KernelSU_kernel" -name ".git" -prune -exec rm -rf {} \; 2>/dev/null || true
             cd "$KERNEL_ROOT/common"
-            if [ ! -L "KernelSU" ]; then
-              ln -sf ../KernelSU . 2>/dev/null || true
-            fi
-            # 通过 ext_name 机制使 KernelSU 源码被 Bazel 识别
-            grep -q "KernelSU/kernel" "Makefile" 2>/dev/null || \
-              echo "obj-y += KernelSU/kernel/" >> Makefile
-            echo "已确保 KernelSU 内核模块被 Bazel 编译"
-            cd "$KERNEL_ROOT"
+            grep -q "KernelSU_kernel" "Makefile" 2>/dev/null || \
+              echo "obj-y += KernelSU_kernel/" >> Makefile
+            echo "已复制 KernelSU 内核模块到 common/KernelSU_kernel"
           fi
 
           if [ -d "KernelSU/.git" ]; then
