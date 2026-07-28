@@ -32,7 +32,7 @@ on:
         description: "KPM 功能（patched 尚不支持）"
         required: true
         type: choice
-        default: "enabled (开启)"
+        default: "disabled (关闭)"
         options:
           - "disabled (关闭)"
           - "enabled (开启)"
