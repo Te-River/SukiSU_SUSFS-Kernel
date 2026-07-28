@@ -89,7 +89,7 @@ on:
         description: "禁用 SUSFS"
         required: true
         type: boolean
-        default: true
+        default: false
 
 jobs:
   build-a14-6-1-138:
