@@ -1287,8 +1287,8 @@ jobs:
         run: |
           # 先确认 SUSFS 补丁已成功应用（检查 susfs.h 头文件是否存在）
           if [ ! -f "${{ env.KERNEL_ROOT }}/common/include/linux/susfs.h" ]; then
-            echo "警告: SUSFS 头文件不存在，SUSFS 补丁可能未成功应用，跳过配置"
-            exit 0
+            echo "::error::SUSFS 补丁未成功应用，SUSFS 头文件不存在，终止构建"
+            exit 1
           fi
           echo "SUSFS 补丁已确认，写入配置..."
           cat >> "$DEFCONFIG" << 'EOF'
