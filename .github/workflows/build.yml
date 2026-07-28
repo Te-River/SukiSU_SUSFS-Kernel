@@ -1439,6 +1439,15 @@ jobs:
               if [ "${{ inputs.kernel_version }}" = "6.12" ]; then
                 LTO_FLAG="--lto=none"
               fi
+              # 修复 TCP 模块未在 module_outs 中声明的问题
+              for mod in tcp_htcp tcp_bic tcp_westwood; do
+                if grep -q "net/ipv4/${mod}.ko" "common/BUILD.bazel"; then
+                  echo "模块 ${mod}.ko 已在 module_outs 中，跳过"
+                else
+                  echo "添加 ${mod}.ko 到 module_outs"
+                  sed -i '/"net\/ipv4\/tcp_bbr.ko"/a\        "net\/ipv4\/'"${mod}"'.ko",' "common/BUILD.bazel" 2>/dev/null || true
+                fi
+              done
               tools/bazel build --disk_cache=/home/runner/.cache/bazel --config=fast $LTO_FLAG $FRAG_FLAG //common:kernel_aarch64_dist || exit 1
               strings ./bazel-bin/common/kernel_aarch64/Image | grep 'Linux version'
             fi
