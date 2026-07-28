@@ -276,7 +276,8 @@ jobs:
 
           if [ -z "$DOWNLOAD_LIST" ]; then
             echo "未获取到 KSU 版本小于等于 $TARGET_KSU_VERSION 的 Manager artifact 下载地址列表。"
-            exit 1
+            echo "管理器 APK 未下载，可在 SukiSU GitHub Releases 自行下载安装：https://github.com/SukiSU-Ultra/SukiSU-Ultra/releases"
+            exit 0
           fi
           echo "选择 Manager 构建 $BEST_BUILD_ID ($BEST_BRANCH), KSU $BEST_VERSION"
 
