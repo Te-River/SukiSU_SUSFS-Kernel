@@ -510,17 +510,7 @@ jobs:
             cd "$KERNEL_ROOT/common/drivers"
             grep -q "kernelsu_local" "Makefile" 2>/dev/null || \
               printf "\nobj-\$(CONFIG_KSU) += kernelsu_local/\n" >> Makefile
-            # KernelSU 子目录中的源码用 #include "uapi/*.h" 引号包含兄弟目录头文件，
-            # GCC 优先从当前文件所在子目录搜索。Bazel 沙箱不保留 symlink，改用
-            # 将 uapi/ 目录实际复制到每个子目录中，使 "uapi/..." 直接从当前目录解析
-            KSL="$KERNEL_ROOT/common/drivers/kernelsu_local"
-            if [ -d "$KSL/uapi" ]; then
-              find "$KSL" -mindepth 1 -maxdepth 1 -type d ! -name 'uapi' | while read -r subdir; do
-                cp -r "$KSL/uapi" "$subdir/uapi"
-                echo "  复制 uapi/ 到 $(basename "$subdir")/uapi"
-              done
-            fi
-            echo "已复制 KernelSU 内核模块到 common/drivers/kernelsu_local，并分发 uapi 头文件"
+            echo "已复制 KernelSU 内核模块到 common/drivers/kernelsu_local"
           fi
 
           if [ -d "KernelSU/.git" ]; then
@@ -1268,6 +1258,13 @@ jobs:
           CONFIG_TMPFS_XATTR=y
           CONFIG_TMPFS_POSIX_ACL=y
           EOF
+
+          # KernelSU 源码用 #include "uapi/*.h" 引号包含兄弟目录头文件，通过
+          # KBUILD_CPPFLAGS 传递 -I 路径，使 GCC 能找到 kernelsu_local 根目录下的头文件
+          # （Bazel processwrapper-sandbox 会重置子目录内的本地修改，但 build.config 持久有效）
+          BCFG="./common/build.config.gki.aarch64"
+          grep -q 'KBUILD_CPPFLAGS.*kernelsu_local' "$BCFG" 2>/dev/null || \
+            sed -i "/^check_defconfig/a KBUILD_CPPFLAGS += -I\$(srctree)/drivers/kernelsu_local" "$BCFG"
 
           if [ "${{ inputs.use_bbr }}" == "true" ]; then
             echo "BBR 配置已启用（通过 POST_DEFCONFIG_CMDS 写入 .config，绕过 fragment 验证）"
