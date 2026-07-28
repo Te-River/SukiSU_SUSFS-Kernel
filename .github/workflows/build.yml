@@ -1254,13 +1254,10 @@ jobs:
           EOF
 
           if [ "${{ inputs.use_bbr }}" == "true" ]; then
-            echo "BBR 配置已启用"
-            cat >> "$DEFCONFIG" << 'EOF'
-          CONFIG_TCP_CONG_ADVANCED=y
-          CONFIG_TCP_CONG_BBR=y
-          CONFIG_NET_SCH_FQ=y
-          EOF
-            grep -q '^CONFIG_DEFAULT_BBR=y$' "$DEFCONFIG" || echo "CONFIG_DEFAULT_BBR=y" >> "$DEFCONFIG"
+            echo "BBR 配置已启用（通过 POST_DEFCONFIG_CMDS 写入 .config，绕过 fragment 验证）"
+            # 写入 POST_DEFCONFIG_CMDS，在 olddefconfig 之后执行，避免触发额外模块编译
+            BCFG="./common/build.config.gki.aarch64"
+            sed -i "s|check_defconfig|echo 'CONFIG_TCP_CONG_ADVANCED=y' >> \.config; echo 'CONFIG_TCP_CONG_BBR=y' >> \.config; echo 'CONFIG_DEFAULT_BBR=y' >> \.config; echo 'CONFIG_NET_SCH_FQ=y' >> \.config; check_defconfig|" "$BCFG"
           fi
 
           if [ "${{ inputs.ksu_variant }}" == "SukiSU" ] || [ "${{ inputs.ksu_variant }}" == "SukiSU(40796)" ] || [ "${{ inputs.ksu_variant }}" == "SukiSU(40726)" ] || [ "${{ inputs.ksu_variant }}" == "SukiSU(40548)" ] || [ "${{ inputs.ksu_variant }}" == "ReSukiSU" ] || [ "${{ inputs.ksu_variant }}" == "Next" ]; then
