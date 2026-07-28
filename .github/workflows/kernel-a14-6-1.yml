@@ -84,7 +84,7 @@ on:
         description: "应用 CVE-2026-43499 rtmutex 修复链"
         required: false
         type: boolean
-        default: false
+        default: true
       cancel_susfs:
         description: "禁用 SUSFS"
         required: true
@@ -118,7 +118,7 @@ on:
       cve_2026_43499_patch:
         required: false
         type: boolean
-        default: false
+        default: true
       cancel_susfs:
         required: false
         type: boolean
