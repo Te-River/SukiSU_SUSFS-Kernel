@@ -1255,13 +1255,9 @@ jobs:
 
           if [ "${{ inputs.use_bbr }}" == "true" ]; then
             echo "BBR 配置已启用"
-            # 顺序重要：ADVANCED 必须在前，否则 BBR/BIC 等不可用
             cat >> "$DEFCONFIG" << 'EOF'
           CONFIG_TCP_CONG_ADVANCED=y
           CONFIG_TCP_CONG_BBR=y
-          CONFIG_TCP_CONG_BIC=n
-          CONFIG_TCP_CONG_HTCP=n
-          CONFIG_TCP_CONG_WESTWOOD=n
           CONFIG_NET_SCH_FQ=y
           EOF
             grep -q '^CONFIG_DEFAULT_BBR=y$' "$DEFCONFIG" || echo "CONFIG_DEFAULT_BBR=y" >> "$DEFCONFIG"
