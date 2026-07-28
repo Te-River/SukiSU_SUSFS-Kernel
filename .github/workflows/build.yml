@@ -48,6 +48,10 @@ on:
         required: true
         type: boolean
         default: true
+      use_bbr:
+        required: true
+        type: boolean
+        default: true
       use_kpm:
         required: true
         type: string
@@ -107,6 +111,7 @@ jobs:
           echo "SUSFS 状态    : ${{ inputs.enable_susfs }}"
           echo "ZRAM 增强     : ${{ inputs.use_zram }}"
           echo "BBG 补丁      : ${{ inputs.use_bbg }}"
+          echo "BBR 加速      : ${{ inputs.use_bbr }}"
           echo "KPM 功能      : ${{ inputs.use_kpm }}"
           echo "Re-Kernel     : ${{ inputs.use_rekernel }}"
           echo "CVE-2026-43499: ${{ inputs.cve_2026_43499_patch }}"
@@ -1233,16 +1238,17 @@ jobs:
           CONFIG_KSU=y
           CONFIG_TMPFS_XATTR=y
           CONFIG_TMPFS_POSIX_ACL=y
+          EOF
+
+          if [ "${{ inputs.use_bbr }}" == "true" ]; then
+            echo "BBR 配置已启用"
+            cat >> "$DEFCONFIG" << 'EOF'
           CONFIG_TCP_CONG_ADVANCED=y
           CONFIG_TCP_CONG_BBR=y
           CONFIG_NET_SCH_FQ=y
-          CONFIG_TCP_CONG_BIC=n
-          CONFIG_TCP_CONG_WESTWOOD=n
-          CONFIG_TCP_CONG_HTCP=n
           EOF
-
-          # 设置 BBR 为默认拥塞算法（独立写入，避免被 defconfig 的 choice 覆盖）
-          grep -q '^CONFIG_DEFAULT_BBR=y$' "$DEFCONFIG" || echo "CONFIG_DEFAULT_BBR=y" >> "$DEFCONFIG"
+            grep -q '^CONFIG_DEFAULT_BBR=y$' "$DEFCONFIG" || echo "CONFIG_DEFAULT_BBR=y" >> "$DEFCONFIG"
+          fi
 
           if [ "${{ inputs.ksu_variant }}" == "SukiSU" ] || [ "${{ inputs.ksu_variant }}" == "SukiSU(40726)" ] || [ "${{ inputs.ksu_variant }}" == "SukiSU(40548)" ] || [ "${{ inputs.ksu_variant }}" == "ReSukiSU" ] || [ "${{ inputs.ksu_variant }}" == "Next" ]; then
             if [[ "${{ inputs.use_kpm }}" == enabled* ]] || [[ "${{ inputs.use_kpm }}" == patched* ]]; then

@@ -70,6 +70,11 @@ on:
         required: true
         type: boolean
         default: false
+      use_bbr:
+        description: "启用 BBR TCP 拥塞加速"
+        required: true
+        type: boolean
+        default: false
       use_rekernel:
         description: "启用 Re-Kernel 驱动"
         required: false
@@ -200,6 +205,7 @@ jobs:
       build_time: ${{ inputs.build_time || '' }}
       use_zram: ${{ inputs.use_zram }}
       use_bbg: ${{ inputs.use_bbg }}
+      use_bbr: ${{ inputs.use_bbr }}
       use_kpm: ${{ inputs.use_kpm }}
       use_rekernel: ${{ inputs.use_rekernel || false }}
       cve_2026_43499_patch: ${{ inputs.cve_2026_43499_patch }}
