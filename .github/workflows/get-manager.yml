@@ -79,6 +79,10 @@ jobs:
             echo "This is the SukiSU(40548) variant"
             git clone https://github.com/SukiSU-Ultra/SukiSU-Ultra.git KernelSU
             git -C KernelSU checkout 3170a48c508f6330ea636c51835a84573fe56ef5
+          elif [ "${{ inputs.kernelsu_variant }}" == "SukiSU(40796)" ]; then
+            echo "This is the SukiSU(40796) variant"
+            git clone https://github.com/SukiSU-Ultra/SukiSU-Ultra.git KernelSU
+            git -C KernelSU checkout 70a4ba3afe0579625630a43ba079c5b890f2e189
           elif [ "${{ inputs.kernelsu_variant }}" == "ReSukiSU" ]; then
             echo "This is the ReSukiSU variant"
             git clone https://github.com/ReSukiSU/ReSukiSU.git KernelSU
@@ -97,6 +101,8 @@ jobs:
 
           if [ "${{ inputs.kernelsu_variant }}" == "SukiSU" ]; then
             KSU_VERSION=$((40000 + KSU_GIT_VERSION - 2815))
+          elif [ "${{ inputs.kernelsu_variant }}" == "SukiSU(40796)" ]; then
+            KSU_VERSION=40796
           elif [ "${{ inputs.kernelsu_variant }}" == "SukiSU(40726)" ]; then
             KSU_VERSION=40726
           elif [ "${{ inputs.kernelsu_variant }}" == "SukiSU(40548)" ]; then
