@@ -510,16 +510,17 @@ jobs:
             cd "$KERNEL_ROOT/common/drivers"
             grep -q "kernelsu_local" "Makefile" 2>/dev/null || \
               printf "\nobj-\$(CONFIG_KSU) += kernelsu_local/\n" >> Makefile
-            # 补全头文件搜索路径：KernelSU 各子目录用 #include "uapi/*.h" 引号包含，
-            # GCC 优先从当前文件所在子目录搜索，找不到这些头文件。加上 -I 路径使之解析到
-            # kernelsu_local 根目录下的头文件（如 uapi/app_profile.h、uapi/allowlist.h 等）
-            for mk in Kbuild Makefile; do
-              kf="$KERNEL_ROOT/common/drivers/kernelsu_local/$mk"
-              if [ -f "$kf" ] && ! grep -q 'ccflags-y.*drivers/kernelsu_local' "$kf" 2>/dev/null; then
-                echo 'ccflags-y += -I$(srctree)/drivers/kernelsu_local' >> "$kf"
-              fi
+            # 修复跨子目录引号包含路径：KernelSU 各子目录（policy/、core/ 等）用
+            # #include "uapi/*.h" 引号包含兄弟目录头文件，但 GCC 优先从当前文件所在
+            # 子目录搜索，找不到这些头文件。将 "uapi/ → "../uapi/"、"policy/ → "../policy/"
+            # 使其从子目录正确解析到兄弟目录
+            find "$KERNEL_ROOT/common/drivers/kernelsu_local" -mindepth 2 -type f \
+              \( -name '*.c' -o -name '*.h' \) | while read -r f; do
+              sed -i 's|#include *"uapi/|#include "../uapi/|g' "$f"
+              sed -i 's|#include *"policy/|#include "../policy/|g' "$f"
+              sed -i 's|#include *"core/|#include "../core/|g' "$f"
             done
-            echo "已复制 KernelSU 内核模块到 common/drivers/kernelsu_local"
+            echo "已复制 KernelSU 内核模块到 common/drivers/kernelsu_local，并修复跨目录包含路径"
           fi
 
           if [ -d "KernelSU/.git" ]; then
