@@ -1243,6 +1243,7 @@ jobs:
           if [ "${{ inputs.use_bbr }}" == "true" ]; then
             echo "BBR 配置已启用"
             cat >> "$DEFCONFIG" << 'EOF'
+          CONFIG_TCP_CONG_ADVANCED=y
           CONFIG_TCP_CONG_BBR=y
           CONFIG_NET_SCH_FQ=y
           EOF
