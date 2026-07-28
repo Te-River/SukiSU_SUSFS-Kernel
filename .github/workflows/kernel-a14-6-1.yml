@@ -15,10 +15,11 @@ on:
           - Official
           #- Next
           - SukiSU
+          - SukiSU(40796)
           - SukiSU(40726)
           - SukiSU(40548)
           - ReSukiSU
-        default: SukiSU
+        default: SukiSU(40796)
       version:
         description: "自定义版本名 (可选)"
         required: false
