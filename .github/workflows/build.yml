@@ -1291,48 +1291,20 @@ jobs:
           if ! find "${{ env.KERNEL_ROOT }}/common" -name "Kconfig*" -exec grep -l 'CONFIG_KSU_SUSFS' {} + 2>/dev/null | head -1 | grep -q .; then
             echo "::warning::SUSFS Kconfig 声明未找到，patch 可能未成功，手动补充 Kconfig 声明"
             KCONFIG_MISSING=true
-            # 手动添加 SUSFS Kconfig 声明到 drivers/Kconfig，避免 Bazel fragment 校验失败
-            cat >> "${{ env.KERNEL_ROOT }}/common/drivers/Kconfig" << 'KCONFIG_EOF'
-source "drivers/Kconfig.susfs"
-KCONFIG_EOF
-            cat > "${{ env.KERNEL_ROOT }}/common/drivers/Kconfig.susfs" << 'KCONFIG_EOF'
-config KSU_SUSFS
-	bool "KernelSU SUSFS (Super User Support FileSystem)"
-	help
-	  Kernel-level hiding and protection for KernelSU/SukiSU root solutions.
-
-if KSU_SUSFS
-
-config KSU_SUSFS_SUS_PATH
-	bool "Path hiding support"
-config KSU_SUSFS_SUS_MOUNT
-	bool "Mount hiding support"
-config KSU_SUSFS_SUS_KSTAT
-	bool "Kstat hiding support"
-config KSU_SUSFS_SUS_MAP
-	bool "Map hiding support"
-config KSU_SUSFS_TRY_UMOUNT
-	bool "Try umount support"
-config KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT
-	bool "Auto add KSU default mount"
-config KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT
-	bool "Auto add bind mount"
-config KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT
-	bool "Auto add try umount for bind mount"
-config KSU_SUSFS_SPOOF_UNAME
-	bool "Uname spoofing"
-config KSU_SUSFS_ENABLE_LOG
-	bool "Enable logging"
-config KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
-	bool "Hide SUSFS symbols"
-config KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
-	bool "Spoof cmdline/bootconfig"
-config KSU_SUSFS_OPEN_REDIRECT
-	bool "Open redirect support"
-
-endif
-KCONFIG_EOF
-            echo "已手动创建 SUSFS Kconfig 声明"
+            echo 'source "drivers/Kconfig.susfs"' >> "${{ env.KERNEL_ROOT }}/common/drivers/Kconfig"
+            KS="${{ env.KERNEL_ROOT }}/common/drivers/Kconfig.susfs"
+            echo 'config KSU_SUSFS' > "$KS"
+            echo '    bool "KernelSU SUSFS"' >> "$KS"
+            echo '    help' >> "$KS"
+            echo '      Kernel-level hiding for KSU/SukiSU.' >> "$KS"
+            echo '' >> "$KS"
+            echo 'if KSU_SUSFS' >> "$KS"
+            for c in SUS_PATH SUS_MOUNT SUS_KSTAT SUS_MAP TRY_UMOUNT AUTO_ADD_SUS_KSU_DEFAULT_MOUNT AUTO_ADD_SUS_BIND_MOUNT AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT SPOOF_UNAME ENABLE_LOG HIDE_KSU_SUSFS_SYMBOLS SPOOF_CMDLINE_OR_BOOTCONFIG OPEN_REDIRECT; do
+              echo "config KSU_SUSFS_${c}" >> "$KS"
+              echo '    bool "SUSFS '"${c}"'"' >> "$KS"
+            done
+            echo 'endif' >> "$KS"
+            echo "已手动创建 SUSFS Kconfig 声明 ($KS)"
           fi
           echo "SUSFS Kconfig 已确认，写入配置..."
           cat >> "$DEFCONFIG" << 'EOF'
