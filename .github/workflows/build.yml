@@ -1285,12 +1285,13 @@ jobs:
       - name: 添加 SUSFS 配置
         if: inputs.enable_susfs
         run: |
-          # 先确认 SUSFS 补丁已成功应用（检查 susfs.h 头文件是否存在）
-          if [ ! -f "${{ env.KERNEL_ROOT }}/common/include/linux/susfs.h" ]; then
-            echo "::error::SUSFS 补丁未成功应用，SUSFS 头文件不存在，终止构建"
+          # 先确认 SUSFS Kconfig 选项实际可用（补丁已成功添加 Kconfig 声明）
+          if ! grep -rqs 'CONFIG_KSU_SUSFS' "${{ env.KERNEL_ROOT }}/common/Kconfig" "${{ env.KERNEL_ROOT }}/common/init/" "${{ env.KERNEL_ROOT }}/common/fs/" "${{ env.KERNEL_ROOT }}/common/kernel/" 2>/dev/null; then
+            echo "::error::SUSFS Kconfig 未找到，SUSFS 补丁可能未成功应用，终止构建"
+            echo "运行 grep -r 'KSU_SUSFS' common/init/ common/fs/ common/kernel/ 查看详情"
             exit 1
           fi
-          echo "SUSFS 补丁已确认，写入配置..."
+          echo "SUSFS Kconfig 已确认，写入配置..."
           cat >> "$DEFCONFIG" << 'EOF'
           CONFIG_KSU_SUSFS=y
           CONFIG_KSU_SUSFS_SUS_PATH=y
