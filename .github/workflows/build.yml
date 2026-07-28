@@ -503,22 +503,32 @@ jobs:
             sed -i '/^GITHUB_COMMITS/c\GITHUB_COMMITS := 3541' KernelSU/kernel/Kbuild 2>/dev/null || true
           fi
 
-          # 确保 KernelSU 源码被 Bazel 编译
+          # 编译 KernelSU 内核模块（为每个子目录创建 obj-y Makefile）
           if [ -d "$KERNEL_ROOT/KernelSU/kernel" ]; then
-            rm -rf "$KERNEL_ROOT/common/KernelSU_kernel" 2>/dev/null || true
-            mkdir -p "$KERNEL_ROOT/common/KernelSU_kernel"
-            # 将 KernelSU 内核模块的所有 .c 文件收集到 flat 目录，避免子目录结构问题
-            find "$KERNEL_ROOT/KernelSU/kernel" -name "*.c" -exec cp {} "$KERNEL_ROOT/common/KernelSU_kernel/" \;
-            find "$KERNEL_ROOT/KernelSU/kernel" -name "*.h" -exec cp {} "$KERNEL_ROOT/common/KernelSU_kernel/" 2>/dev/null \;
-            # 生成 Makefile：为每个 .c 文件添加 obj-y
-            cd "$KERNEL_ROOT/common/KernelSU_kernel"
-            for f in *.c; do
-              echo "obj-y += ${f%.c}.o" >> Makefile
-            done
             cd "$KERNEL_ROOT/common"
-            grep -q "KernelSU_kernel" "Makefile" 2>/dev/null || \
-              echo "obj-y += KernelSU_kernel/" >> Makefile
-            echo "已创建 KernelSU 内核模块 flat 目录，共 $(ls "$KERNEL_ROOT/common/KernelSU_kernel"/*.c 2>/dev/null | wc -l) 个源文件"
+            ln -sf ../KernelSU . 2>/dev/null || true
+            # 为 KernelSU/kernel 下的每个子目录创建 obj-y Makefile
+            for subdir in core feature hook infra kpm manager policy runtime selinux sulog supercall tools; do
+              if [ -d "KernelSU/kernel/$subdir" ] && ls "KernelSU/kernel/$subdir"/*.c >/dev/null 2>&1; then
+                mf="KernelSU/kernel/$subdir/Makefile"
+                if ! grep -q "obj-y" "$mf" 2>/dev/null; then
+                  for f in "KernelSU/kernel/$subdir"/*.c; do
+                    echo "obj-y += $(basename ${f%.c}).o" >> "$mf"
+                  done
+                fi
+              fi
+            done
+            # 为 KernelSU/kernel 自身创建 Makefile（包含所有子目录）
+            mf="KernelSU/kernel/Makefile"
+            if ! grep -q "obj-y" "$mf" 2>/dev/null; then
+              > "$mf"
+              for subdir in core feature hook infra kpm manager policy runtime selinux sulog supercall tools; do
+                [ -d "KernelSU/kernel/$subdir" ] && echo "obj-y += $subdir/" >> "$mf"
+              done
+            fi
+            # 在 common/Makefile 中添加引用
+            grep -q "KernelSU/kernel" "Makefile" 2>/dev/null || echo "obj-y += KernelSU/kernel/" >> Makefile
+            echo "已配置 KernelSU 内核模块 obj-y 编译"
           fi
 
           if [ -d "KernelSU/.git" ]; then
