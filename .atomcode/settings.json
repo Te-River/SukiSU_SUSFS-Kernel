@@ -1,0 +1,22 @@
+{
+  "hooks": {
+    "PostToolUse": {
+      "description": "编辑工作流文件后自动检查 YAML 语法",
+      "matchers": [
+        {
+          "patterns": [".github/workflows/*.yml"],
+          "command": "bash -c \"python3 -c 'import yaml,sys; yaml.safe_load(open(sys.argv[1])); print(\\\"✅ YAML 语法正确\\\")' '$ATOMCODE_FILE' 2>&1 || echo '⚠️ YAML 语法有误，请检查'\""
+        }
+      ]
+    },
+    "PreToolUse": {
+      "description": "阻止直接编辑 .rej 补丁冲突残留文件",
+      "matchers": [
+        {
+          "patterns": ["*.rej"],
+          "command": "echo '⛔ .rej 文件是 patch 冲突残留，不应手动编辑。请检查原始文件并重新应用补丁。'"
+        }
+      ]
+    }
+  }
+}
