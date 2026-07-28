@@ -510,18 +510,17 @@ jobs:
             cd "$KERNEL_ROOT/common/drivers"
             grep -q "kernelsu_local" "Makefile" 2>/dev/null || \
               printf "\nobj-\$(CONFIG_KSU) += kernelsu_local/\n" >> Makefile
-            # KernelSU 子目录（policy/、core/）中的源代码用 #include "uapi/*.h"
-            # 引号包含兄弟目录头文件，GCC 优先从当前子目录搜索。在每个子目录下
-            # 创建指向 uapi/ 的 symlink，使 "uapi/..." 能解析到 uapi/ 目录下的文件
+            # KernelSU 子目录中的源码用 #include "uapi/*.h" 引号包含兄弟目录头文件，
+            # GCC 优先从当前文件所在子目录搜索。Bazel 沙箱不保留 symlink，改用
+            # 将 uapi/ 目录实际复制到每个子目录中，使 "uapi/..." 直接从当前目录解析
             KSL="$KERNEL_ROOT/common/drivers/kernelsu_local"
-            find "$KSL" -mindepth 1 -maxdepth 1 -type d ! -name 'uapi' | while read -r subdir; do
-              subname=$(basename "$subdir")
-              if [ ! -e "$subdir/uapi" ]; then
-                ln -sf "../uapi" "$subdir/uapi"
-                echo "  创建 symlink: $subname/uapi -> ../uapi"
-              fi
-            done
-            echo "已复制 KernelSU 内核模块到 common/drivers/kernelsu_local，并添加 uapi symlink"
+            if [ -d "$KSL/uapi" ]; then
+              find "$KSL" -mindepth 1 -maxdepth 1 -type d ! -name 'uapi' | while read -r subdir; do
+                cp -r "$KSL/uapi" "$subdir/uapi"
+                echo "  复制 uapi/ 到 $(basename "$subdir")/uapi"
+              done
+            fi
+            echo "已复制 KernelSU 内核模块到 common/drivers/kernelsu_local，并分发 uapi 头文件"
           fi
 
           if [ -d "KernelSU/.git" ]; then
