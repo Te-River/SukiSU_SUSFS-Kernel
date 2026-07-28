@@ -503,32 +503,14 @@ jobs:
             sed -i '/^GITHUB_COMMITS/c\GITHUB_COMMITS := 3541' KernelSU/kernel/Kbuild 2>/dev/null || true
           fi
 
-          # 编译 KernelSU 内核模块（为每个子目录创建 obj-y Makefile）
-          if [ -d "$KERNEL_ROOT/KernelSU/kernel" ]; then
-            cd "$KERNEL_ROOT/common"
-            ln -sf ../KernelSU . 2>/dev/null || true
-            # 为 KernelSU/kernel 下的每个子目录创建 obj-y Makefile
-            for subdir in core feature hook infra kpm manager policy runtime selinux sulog supercall tools; do
-              if [ -d "KernelSU/kernel/$subdir" ] && ls "KernelSU/kernel/$subdir"/*.c >/dev/null 2>&1; then
-                mf="KernelSU/kernel/$subdir/Makefile"
-                if ! grep -q "obj-y" "$mf" 2>/dev/null; then
-                  for f in "KernelSU/kernel/$subdir"/*.c; do
-                    echo "obj-y += $(basename ${f%.c}).o" >> "$mf"
-                  done
-                fi
-              fi
-            done
-            # 为 KernelSU/kernel 自身创建 Makefile（包含所有子目录）
-            mf="KernelSU/kernel/Makefile"
-            if ! grep -q "obj-y" "$mf" 2>/dev/null; then
-              > "$mf"
-              for subdir in core feature hook infra kpm manager policy runtime selinux sulog supercall tools; do
-                [ -d "KernelSU/kernel/$subdir" ] && echo "obj-y += $subdir/" >> "$mf"
-              done
-            fi
-            # 在 common/Makefile 中添加引用
-            grep -q "KernelSU/kernel" "Makefile" 2>/dev/null || echo "obj-y += KernelSU/kernel/" >> Makefile
-            echo "已配置 KernelSU 内核模块 obj-y 编译"
+          # 确保 KernelSU 源码被 Bazel 编译（直接复制到 common/drivers/ 下，Bazel 不处理 symlink）
+          if [ -d "$KERNEL_ROOT/KernelSU/kernel" ] && [ -d "$KERNEL_ROOT/common/drivers" ]; then
+            rm -rf "$KERNEL_ROOT/common/drivers/kernelsu_local" 2>/dev/null || true
+            cp -r "$KERNEL_ROOT/KernelSU/kernel" "$KERNEL_ROOT/common/drivers/kernelsu_local"
+            cd "$KERNEL_ROOT/common/drivers"
+            grep -q "kernelsu_local" "Makefile" 2>/dev/null || \
+              printf "\nobj-\$(CONFIG_KSU) += kernelsu_local/\n" >> Makefile
+            echo "已复制 KernelSU 内核模块到 common/drivers/kernelsu_local"
           fi
 
           if [ -d "KernelSU/.git" ]; then
