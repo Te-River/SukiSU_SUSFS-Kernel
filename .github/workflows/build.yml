@@ -1286,8 +1286,9 @@ jobs:
         if: inputs.enable_susfs
         run: |
           # 先确认 SUSFS Kconfig 选项实际可用（补丁已成功添加 Kconfig 声明）
-          if ! grep -rqs 'CONFIG_KSU_SUSFS' "${{ env.KERNEL_ROOT }}/common/Kconfig" "${{ env.KERNEL_ROOT }}/common/init/" "${{ env.KERNEL_ROOT }}/common/fs/" "${{ env.KERNEL_ROOT }}/common/kernel/" 2>/dev/null; then
-            echo "::error::SUSFS Kconfig 未找到，SUSFS 补丁可能未成功应用，终止构建"
+          # 只搜索 Kconfig 文件，避免 cp 进来的 fs/ 源码误匹配
+          if ! find "${{ env.KERNEL_ROOT }}/common" -name "Kconfig*" -exec grep -l 'CONFIG_KSU_SUSFS' {} + 2>/dev/null | head -1 | grep -q .; then
+            echo "::error::SUSFS Kconfig 声明未找到，patch -p1 可能未成功添加 Kconfig 配置项，终止构建"
             echo "运行 grep -r 'KSU_SUSFS' common/init/ common/fs/ common/kernel/ 查看详情"
             exit 1
           fi
