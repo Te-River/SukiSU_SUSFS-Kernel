@@ -494,13 +494,13 @@ jobs:
               ;;
           esac
 
-          # 对固定版本变体强制设定 GITHUB_COMMITS，确保 KSU_VERSION 精确匹配
+          # 对固定版本变体强制设定 KSU_VERSION，避免 git commit 数计算偏差
           if [ "${{ inputs.ksu_variant }}" == "SukiSU(40796)" ]; then
-            echo "GITHUB_COMMITS=3611" >> $GITHUB_ENV
+            sed -i '/^GITHUB_COMMITS/c\GITHUB_COMMITS := 3611' KernelSU/kernel/Kbuild 2>/dev/null || true
             echo "已设定 GITHUB_COMMITS=3611 (KSU_VERSION=40796)"
           fi
           if [ "${{ inputs.ksu_variant }}" == "SukiSU(40726)" ]; then
-            echo "GITHUB_COMMITS=3541" >> $GITHUB_ENV
+            sed -i '/^GITHUB_COMMITS/c\GITHUB_COMMITS := 3541' KernelSU/kernel/Kbuild 2>/dev/null || true
           fi
 
           # 确保 Bazel 将 KernelSU 内核模块编译进内核（setup.sh 只改根目录 Makefile，Bazel 编译 common/ 内部的源码）
