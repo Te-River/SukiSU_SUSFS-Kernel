@@ -15,7 +15,10 @@ on:
           - Official
           - SukiSU
           - SukiSU(40796)
-        default: SukiSU
+          - SukiSU(40726)
+          - SukiSU(40548)
+          - ReSukiSU
+        default: SukiSU(40796)
       version:
         description: "自定义版本名 (可选)"
         required: false
