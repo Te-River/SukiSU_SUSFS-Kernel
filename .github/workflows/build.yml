@@ -540,6 +540,97 @@ jobs:
                 sed -i '1i ccflags-y += -I$(src)' "$KSU_KBUILD"
             fi
             echo "已复制 KernelSU 内核模块到 common/drivers/kernelsu_local（含 -I\$(src) 头文件路径修复）"
+
+            # 新版 SukiSU-Ultra 重构为 syscall hooking 架构，不再导出旧式 hook 函数，
+            # 但 SUSFS 内核补丁仍会在 fs/exec.c、kernel/reboot.c 等文件中调用它们。
+            # 提供空实现桩函数避免链接失败（新架构通过自身 syscall hook 处理这些功能）。
+            COMPAT_DIR="kernelsu_local/compat"
+            mkdir -p "$COMPAT_DIR"
+            cat > "$COMPAT_DIR/susfs_hooks_compat.c" << 'COMPAT_EOF'
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Compatibility stubs for old-style KSU hooks.
+ *
+ * The SUSFS kernel patch (50_add_susfs_in_gki) inserts calls to legacy
+ * KernelSU hook functions in core kernel code.  The new SukiSU-Ultra
+ * (v4.x) replaced direct function hooks with a syscall-table hooking
+ * engine, so these symbols are no longer exported.  Provide no-op stubs
+ * to satisfy the linker; the new KSU handles the actual functionality
+ * through its own hook manager.
+ */
+#include <linux/types.h>
+#include <linux/fs.h>
+#include <linux/uidgid.h>
+
+/* ---- legacy KSU hook stubs (called from SUSFS-patched kernel code) ---- */
+
+int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd, void *arg)
+{
+	return 0;
+}
+
+void ksu_init_rc_hook(void)
+{
+}
+
+int ksu_handle_sys_read(unsigned int fd, char __user **buf_ptr,
+			size_t *count_ptr)
+{
+	return 0;
+}
+
+int ksu_handle_vfs_fstat(unsigned int fd, struct kstat *stat)
+{
+	return 0;
+}
+
+bool ksu_execveat_hook __read_mostly;
+EXPORT_SYMBOL(ksu_execveat_hook);
+
+int ksu_handle_execveat(int *fd, struct filename **filename_ptr,
+			void *argv, void *envp, int *flags)
+{
+	return 0;
+}
+
+int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr,
+				 void *argv, void *envp, int *flags)
+{
+	return 0;
+}
+
+int ksu_handle_devpts(struct inode *inode)
+{
+	return 0;
+}
+
+bool ksu_input_hook __read_mostly;
+EXPORT_SYMBOL(ksu_input_hook);
+
+int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code,
+				  int *value)
+{
+	return 0;
+}
+
+int ksu_handle_faccessat(int *dfd, const char __user **filename_user,
+			 int *mode, int *flags)
+{
+	return 0;
+}
+
+int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags)
+{
+	return 0;
+}
+COMPAT_EOF
+
+            # 将兼容性桩编入 kernelsu 模块
+            if [ -f "$KSU_KBUILD" ]; then
+              grep -q 'susfs_hooks_compat' "$KSU_KBUILD" 2>/dev/null || \
+                sed -i '/^kernelsu-objs.*:=/a kernelsu-objs += compat/susfs_hooks_compat.o' "$KSU_KBUILD"
+            fi
+            echo "已创建 SUSFS 旧式 hook 兼容性桩函数"
           fi
 
           if [ -d "KernelSU/.git" ]; then
@@ -922,6 +1013,12 @@ jobs:
                 echo "已修复 exec.c 缺少 susfs_def.h 问题"
               fi
             fi
+          fi
+
+          # 安全网：确保 SUSFS 源文件被编入内核（补丁 hunk 失败时 Makefile 可能漏改）
+          if [ -f fs/susfs.c ] && ! grep -q 'susfs' fs/Makefile 2>/dev/null; then
+            echo 'obj-$(CONFIG_KSU_SUSFS) += susfs.o' >> fs/Makefile
+            echo "已补充 fs/Makefile 中缺失的 susfs.o 编译条目"
           fi
 
       - name: 克隆 Droidspaces 补丁仓库
