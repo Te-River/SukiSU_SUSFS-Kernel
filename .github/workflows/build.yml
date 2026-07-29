@@ -507,6 +507,17 @@ jobs:
           if [ -d "$KERNEL_ROOT/KernelSU/kernel" ] && [ -d "$KERNEL_ROOT/common/drivers" ]; then
             rm -rf "$KERNEL_ROOT/common/drivers/kernelsu_local" 2>/dev/null || true
             cp -r "$KERNEL_ROOT/KernelSU/kernel" "$KERNEL_ROOT/common/drivers/kernelsu_local"
+            # 新版 SukiSU-Ultra 将 uapi/ 移到仓库根目录，kernel/include/uapi 是指向
+            # ../../uapi 的符号链接。仅复制 kernel/ 会导致链接断裂，需额外复制 uapi/。
+            if [ -d "$KERNEL_ROOT/KernelSU/uapi" ] && [ ! -d "$KERNEL_ROOT/common/drivers/kernelsu_local/uapi" ]; then
+              cp -r "$KERNEL_ROOT/KernelSU/uapi" "$KERNEL_ROOT/common/drivers/kernelsu_local/uapi"
+              echo "已复制 KernelSU/uapi → kernelsu_local/uapi（修复断裂的符号链接）"
+            fi
+            # 若 include/uapi 仍是断裂的符号链接，删除后由上面的实体目录替代
+            if [ -L "$KERNEL_ROOT/common/drivers/kernelsu_local/include/uapi" ]; then
+              rm -f "$KERNEL_ROOT/common/drivers/kernelsu_local/include/uapi"
+              echo "已移除断裂的 include/uapi 符号链接"
+            fi
             cd "$KERNEL_ROOT/common/drivers"
             grep -q "kernelsu_local" "Makefile" 2>/dev/null || \
               printf "\nobj-\$(CONFIG_KSU) += kernelsu_local/\n" >> Makefile
