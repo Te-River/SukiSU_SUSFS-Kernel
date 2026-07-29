@@ -145,7 +145,7 @@ JSON 结构：`{ android_version, kernel_version, lts, entries: [{date, kernel}]
 
 3. **Bazel 缓存路径**：`--disk_cache=/home/runner/.cache/bazel` 是 GitHub Actions 专用路径。
 
-4. **KernelSU 源码编译**：KernelSU 的 `kernel/Makefile` 是外置模块格式（`make -C ... M=... modules`），对 Bazel 不适用。当前方案：`cp -r KernelSU/kernel → common/drivers/kernelsu_local`，然后 `obj-$(CONFIG_KSU) += kernelsu_local/` 追加到 `common/drivers/Makefile`。**头文件路径**：KernelSU 源码中 `#include "uapi/xxx.h"` 需要以 kernelsu_local 根为基准查找，必须在复制后往 `Kbuild` 第 1 行插入 `ccflags-y += -I$(src)`（`build.config` 中的 `KBUILD_CPPFLAGS` 在 Bazel 构建中不传递）。
+4. **KernelSU 源码编译**：KernelSU 的 `kernel/Makefile` 是外置模块格式（`make -C ... M=... modules`），对 Bazel 不适用。当前方案：`cp -r KernelSU/kernel → common/drivers/kernelsu_local`，然后 `obj-$(CONFIG_KSU) += kernelsu_local/` 追加到 `common/drivers/Makefile`。**头文件路径**：KernelSU 源码中 `#include "uapi/xxx.h"` 需要以 kernelsu_local 根为基准查找，必须在复制后往 `Kbuild` 第 1 行插入 `ccflags-y += -I$(src)`（`build.config` 中的 `KBUILD_CPPFLAGS` 在 Bazel 构建中不传递）。**uapi 符号链接**：新版 SukiSU-Ultra 将 `uapi/` 移到仓库根目录，`kernel/include/uapi` 是指向 `../../uapi` 的符号链接。仅复制 `kernel/` 会导致链接断裂，需额外复制 `KernelSU/uapi` → `kernelsu_local/uapi` 并删除断裂的 `include/uapi` 符号链接。
 
 5. **BBR 配置绕过**：不能用 defconfig fragment 加 `CONFIG_TCP_CONG_ADVANCED=y`（触发额外 TCP 模块编译 / module_outs 报错）。改用 POST_DEFCONFIG_CMDS 在 olddefconfig 之后写入 `.config`，绕过 Bazel fragment 校验。
 
