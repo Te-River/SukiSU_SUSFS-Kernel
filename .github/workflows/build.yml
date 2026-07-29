@@ -510,7 +510,15 @@ jobs:
             cd "$KERNEL_ROOT/common/drivers"
             grep -q "kernelsu_local" "Makefile" 2>/dev/null || \
               printf "\nobj-\$(CONFIG_KSU) += kernelsu_local/\n" >> Makefile
-            echo "已复制 KernelSU 内核模块到 common/drivers/kernelsu_local"
+            # 修复头文件搜索路径：KernelSU 源码中 #include "uapi/xxx.h" 需要以
+            # kernelsu_local 根目录为基准查找。Bazel 不传递 build.config 中的
+            # KBUILD_CPPFLAGS，必须通过 Kbuild 的 ccflags-y 注入 -I$(src)。
+            KSU_KBUILD="kernelsu_local/Kbuild"
+            if [ -f "$KSU_KBUILD" ]; then
+              grep -q 'ccflags-y.*-I\$(src)' "$KSU_KBUILD" 2>/dev/null || \
+                sed -i '1i ccflags-y += -I$(src)' "$KSU_KBUILD"
+            fi
+            echo "已复制 KernelSU 内核模块到 common/drivers/kernelsu_local（含 -I\$(src) 头文件路径修复）"
           fi
 
           if [ -d "KernelSU/.git" ]; then
@@ -1259,12 +1267,8 @@ jobs:
           CONFIG_TMPFS_POSIX_ACL=y
           EOF
 
-          # KernelSU 源码用 #include "uapi/*.h" 引号包含兄弟目录头文件，通过
-          # KBUILD_CPPFLAGS 传递 -I 路径，使 GCC 能找到 kernelsu_local 根目录下的头文件
-          # （Bazel processwrapper-sandbox 会重置子目录内的本地修改，但 build.config 持久有效）
-          BCFG="./common/build.config.gki.aarch64"
-          grep -q 'KBUILD_CPPFLAGS.*kernelsu_local' "$BCFG" 2>/dev/null || \
-            sed -i "/^check_defconfig/a KBUILD_CPPFLAGS += -I\$(srctree)/drivers/kernelsu_local" "$BCFG"
+          # 注：KernelSU 头文件路径已通过复制步骤中 Kbuild ccflags-y += -I$(src) 解决
+          # build.config 方式在 Bazel 构建中不生效（Bazel 不 source build.config 变量到 make 环境）
 
           if [ "${{ inputs.use_bbr }}" == "true" ]; then
             echo "BBR 配置已启用（通过 POST_DEFCONFIG_CMDS 写入 .config，绕过 fragment 验证）"
