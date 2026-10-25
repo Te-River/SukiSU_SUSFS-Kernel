@@ -619,63 +619,9 @@ jobs:
             cp -r "$KERNEL_ROOT/KernelSU/kernel" "$KSU_DIR"
             echo "已复制 KernelSU 内核模块到 common/drivers/kernelsu（新布局，沿用 setup.sh 的 Makefile/Kconfig 条目）"
 
-            # 与 kernelsu_local 分支相同的 SUSFS 旧式 hook 兼容性桩（C 代码须与上面保持一致）
-            COMPAT_DIR="$KSU_DIR/compat"
-            mkdir -p "$COMPAT_DIR"
-            cat > "$COMPAT_DIR/susfs_hooks_compat.c" << 'COMPAT_EOF'
-            // SPDX-License-Identifier: GPL-2.0
-            /*
-             * Compatibility stubs for old-style KSU hooks.
-             * The SUSFS kernel patch inserts calls to legacy KernelSU hook
-             * functions.  New SukiSU-Ultra (v4.x) uses syscall-table hooking
-             * and no longer exports these symbols.  Provide no-op stubs.
-             */
-            #include <linux/types.h>
-            #include <linux/fs.h>
-            #include <linux/uidgid.h>
-
-            int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd, void *arg)
-            { return 0; }
-
-            void ksu_init_rc_hook(void) { }
-
-            int ksu_handle_sys_read(unsigned int fd, char __user **buf_ptr, size_t *count_ptr)
-            { return 0; }
-
-            int ksu_handle_vfs_fstat(unsigned int fd, struct kstat *stat)
-            { return 0; }
-
-            bool ksu_execveat_hook __read_mostly;
-            EXPORT_SYMBOL(ksu_execveat_hook);
-
-            int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv, void *envp, int *flags)
-            { return 0; }
-
-            int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr, void *argv, void *envp, int *flags)
-            { return 0; }
-
-            int ksu_handle_devpts(struct inode *inode)
-            { return 0; }
-
-            bool ksu_input_hook __read_mostly;
-            EXPORT_SYMBOL(ksu_input_hook);
-
-            int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value)
-            { return 0; }
-
-            int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode, int *flags)
-            { return 0; }
-
-            int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags)
-            { return 0; }
-          COMPAT_EOF
-
-            # 新布局的模块对象变量是 ksu-y（首行 obj-$(CONFIG_KSU) := ksu.o）
-            if [ -f "$KSU_DIR/Makefile" ]; then
-              grep -q 'susfs_hooks_compat' "$KSU_DIR/Makefile" 2>/dev/null || \
-                echo 'ksu-y += compat/susfs_hooks_compat.o' >> "$KSU_DIR/Makefile"
-            fi
-            echo "已创建 SUSFS 旧式 hook 兼容性桩函数（新布局）"
+            # 不再生成旧式 hook 兼容桩：最新 builtin 的 kernel/ksu_main.c 已定义
+            # ksu_handle_* / ksu_execveat_hook / ksu_input_hook 等符号，
+            # 再提供桩会触发 ld.lld duplicate symbol（run 40180286833 实测）。
           fi
 
           if [ -d "KernelSU/.git" ]; then
