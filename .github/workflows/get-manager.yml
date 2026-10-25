@@ -33,6 +33,12 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
+      - name: 检出仓库配置
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: config
+
       - name: 🧐 Debug Workflow Caller Context
         run: |
           echo "==================== DEBUG CONTEXT ===================="
@@ -114,6 +120,18 @@ jobs:
           elif [ "${{ inputs.kernelsu_variant }}" == "Next" ]; then
             KSU_VERSION=$((30000 + KSU_GIT_VERSION))
           fi
+
+          # 若 config/config 钉死了版本，则与 build.yml 使用同一个钉子，避免管理器领先内核
+          # 注意：本步骤前面已 cd KernelSU，必须用仓库根绝对路径读取 config/config
+          KP_CONFIG="${{ github.workspace }}/config/config"
+          if [ -f "$KP_CONFIG" ] && grep -q '^custom=true' "$KP_CONFIG"; then
+            PIN_VERSION=$(grep '^sukisu_version=' "$KP_CONFIG" | cut -d'=' -f2-)
+            if [ -n "$PIN_VERSION" ]; then
+              KSU_VERSION="$PIN_VERSION"
+              echo "使用 config/config 钉定的 KSU_VERSION=$KSU_VERSION"
+            fi
+          fi
+
           echo $KSU_VERSION
           echo "KSU_VERSION=$KSU_VERSION" >> $GITHUB_ENV
 

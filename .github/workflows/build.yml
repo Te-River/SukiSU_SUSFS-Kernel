@@ -619,6 +619,21 @@ jobs:
             cp -r "$KERNEL_ROOT/KernelSU/kernel" "$KSU_DIR"
             echo "已复制 KernelSU 内核模块到 common/drivers/kernelsu（新布局，沿用 setup.sh 的 Makefile/Kconfig 条目）"
 
+            # 版本钉定（新布局）：上游 kernel/Makefile 在编译时用 GitHub API 现查 main 提交数，
+            # 会随上游漂移；custom=true 且 config/config 里有 sukisu_version 时，直接固定 GITHUB_COMMITS。
+            # 本步骤 working-directory 是 $KERNEL_ROOT，config/config 必须用仓库根绝对路径。
+            KP_CONFIG="${{ github.workspace }}/config/config"
+            if [ -f "$KP_CONFIG" ] && grep -q '^custom=true' "$KP_CONFIG"; then
+              PIN_VERSION=$(grep '^sukisu_version=' "$KP_CONFIG" | cut -d'=' -f2-)
+              if [ -n "$PIN_VERSION" ]; then
+                PIN_COMMITS=$((PIN_VERSION - 40000 + 2815))
+                if [ -f "$KSU_DIR/Makefile" ]; then
+                  sed -i -E "s|^GITHUB_COMMITS[[:space:]]*:=.*|GITHUB_COMMITS   := ${PIN_COMMITS}|" "$KSU_DIR/Makefile"
+                  echo "已钉定 GITHUB_COMMITS=${PIN_COMMITS} (KSU_VERSION=${PIN_VERSION})"
+                fi
+              fi
+            fi
+
             # 不再生成旧式 hook 兼容桩：最新 builtin 的 kernel/ksu_main.c 已定义
             # ksu_handle_* / ksu_execveat_hook / ksu_input_hook 等符号，
             # 再提供桩会触发 ld.lld duplicate symbol（run 40180286833 实测）。
