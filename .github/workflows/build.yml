@@ -495,16 +495,23 @@ jobs:
           esac
 
           # 对固定版本变体强制设定 KSU_VERSION，避免 git commit 数计算偏差
-          if [ "${{ inputs.ksu_variant }}" == "SukiSU(40796)" ]; then
-            sed -i '/^GITHUB_COMMITS/c\GITHUB_COMMITS := 3611' KernelSU/kernel/Kbuild 2>/dev/null || true
-            echo "已设定 GITHUB_COMMITS=3611 (KSU_VERSION=40796)"
-          fi
-          if [ "${{ inputs.ksu_variant }}" == "SukiSU(40726)" ]; then
-            sed -i '/^GITHUB_COMMITS/c\GITHUB_COMMITS := 3541' KernelSU/kernel/Kbuild 2>/dev/null || true
+          # 版本钉定只对老布局有效：最新 builtin 已删除 kernel/Kbuild，版本宏移到 kernel/Makefile
+          if [ -f "KernelSU/kernel/Kbuild" ]; then
+            if [ "${{ inputs.ksu_variant }}" == "SukiSU(40796)" ]; then
+              sed -i '/^GITHUB_COMMITS/c\GITHUB_COMMITS := 3611' KernelSU/kernel/Kbuild 2>/dev/null || true
+              echo "已设定 GITHUB_COMMITS=3611 (KSU_VERSION=40796)"
+            fi
+            if [ "${{ inputs.ksu_variant }}" == "SukiSU(40726)" ]; then
+              sed -i '/^GITHUB_COMMITS/c\GITHUB_COMMITS := 3541' KernelSU/kernel/Kbuild 2>/dev/null || true
+            fi
+          else
+            echo "未找到 KernelSU/kernel/Kbuild（新布局：版本宏在 kernel/Makefile），跳过 GITHUB_COMMITS 钉定"
           fi
 
           # 确保 KernelSU 源码被 Bazel 编译（直接复制到 common/drivers/ 下，Bazel 不处理 symlink）
-          if [ -d "$KERNEL_ROOT/KernelSU/kernel" ] && [ -d "$KERNEL_ROOT/common/drivers" ]; then
+          # 按源码布局分叉：老变体（SukiSU(40796)/(40726)/(40548) 等）自带 kernel/Kbuild，
+          # 走下面的 kernelsu_local 分支；最新 builtin 没有 Kbuild，走文件末尾的 elif 分支。
+          if [ -f "$KERNEL_ROOT/KernelSU/kernel/Kbuild" ] && [ -d "$KERNEL_ROOT/common/drivers" ]; then
             rm -rf "$KERNEL_ROOT/common/drivers/kernelsu_local" 2>/dev/null || true
             cp -r "$KERNEL_ROOT/KernelSU/kernel" "$KERNEL_ROOT/common/drivers/kernelsu_local"
             # 新版 SukiSU-Ultra 将 uapi/ 移到仓库根目录，kernel/include/uapi 是指向
@@ -592,7 +599,7 @@ jobs:
 
             int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags)
             { return 0; }
-            COMPAT_EOF
+          COMPAT_EOF
 
             # 将兼容性桩编入 kernelsu 模块
             if [ -f "$KSU_KBUILD" ]; then
@@ -600,6 +607,75 @@ jobs:
                 sed -i '/^kernelsu-objs.*:=/a kernelsu-objs += compat/susfs_hooks_compat.o' "$KSU_KBUILD"
             fi
             echo "已创建 SUSFS 旧式 hook 兼容性桩函数"
+          elif [ -d "$KERNEL_ROOT/KernelSU/kernel" ] && [ -d "$KERNEL_ROOT/common/drivers" ]; then
+            # 新布局（最新 SukiSU-Ultra builtin，无 kernel/Kbuild）：
+            # setup.sh 把 drivers/kernelsu 建成指向 KernelSU/kernel 的符号链接，并在
+            # drivers/Makefile、drivers/Kconfig 里写死 kernelsu 这个名字；Bazel 不跟随
+            # 符号链接，而且 kernel/Makefile 在 CONFIG_KSU_SUSFS=y 时把
+            # -I$(srctree)/drivers/kernelsu 硬编码为头文件搜索路径。所以源码必须复制到
+            # 同名真实目录；不改名，也不复制 KernelSU/uapi（新版 include/uapi 已是真实目录）。
+            KSU_DIR="$KERNEL_ROOT/common/drivers/kernelsu"
+            rm -rf "$KSU_DIR"
+            cp -r "$KERNEL_ROOT/KernelSU/kernel" "$KSU_DIR"
+            echo "已复制 KernelSU 内核模块到 common/drivers/kernelsu（新布局，沿用 setup.sh 的 Makefile/Kconfig 条目）"
+
+            # 与 kernelsu_local 分支相同的 SUSFS 旧式 hook 兼容性桩（C 代码须与上面保持一致）
+            COMPAT_DIR="$KSU_DIR/compat"
+            mkdir -p "$COMPAT_DIR"
+            cat > "$COMPAT_DIR/susfs_hooks_compat.c" << 'COMPAT_EOF'
+            // SPDX-License-Identifier: GPL-2.0
+            /*
+             * Compatibility stubs for old-style KSU hooks.
+             * The SUSFS kernel patch inserts calls to legacy KernelSU hook
+             * functions.  New SukiSU-Ultra (v4.x) uses syscall-table hooking
+             * and no longer exports these symbols.  Provide no-op stubs.
+             */
+            #include <linux/types.h>
+            #include <linux/fs.h>
+            #include <linux/uidgid.h>
+
+            int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd, void *arg)
+            { return 0; }
+
+            void ksu_init_rc_hook(void) { }
+
+            int ksu_handle_sys_read(unsigned int fd, char __user **buf_ptr, size_t *count_ptr)
+            { return 0; }
+
+            int ksu_handle_vfs_fstat(unsigned int fd, struct kstat *stat)
+            { return 0; }
+
+            bool ksu_execveat_hook __read_mostly;
+            EXPORT_SYMBOL(ksu_execveat_hook);
+
+            int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv, void *envp, int *flags)
+            { return 0; }
+
+            int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr, void *argv, void *envp, int *flags)
+            { return 0; }
+
+            int ksu_handle_devpts(struct inode *inode)
+            { return 0; }
+
+            bool ksu_input_hook __read_mostly;
+            EXPORT_SYMBOL(ksu_input_hook);
+
+            int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value)
+            { return 0; }
+
+            int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode, int *flags)
+            { return 0; }
+
+            int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags)
+            { return 0; }
+          COMPAT_EOF
+
+            # 新布局的模块对象变量是 ksu-y（首行 obj-$(CONFIG_KSU) := ksu.o）
+            if [ -f "$KSU_DIR/Makefile" ]; then
+              grep -q 'susfs_hooks_compat' "$KSU_DIR/Makefile" 2>/dev/null || \
+                echo 'ksu-y += compat/susfs_hooks_compat.o' >> "$KSU_DIR/Makefile"
+            fi
+            echo "已创建 SUSFS 旧式 hook 兼容性桩函数（新布局）"
           fi
 
           if [ -d "KernelSU/.git" ]; then
